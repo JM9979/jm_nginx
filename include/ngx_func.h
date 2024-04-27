@@ -12,9 +12,14 @@ private:
 public:
     ngx_func(const ngx_func& other) = delete;
     ngx_func& operator=(const ngx_func& other) = delete;
-    // 去除字符串中的空白字符
+
     static ngx_func& getInstance();
+    // 去除字符串中的空白字符
     void eraseEmpty(char *string);
+    // 移动环境变量的内存
+    static void ngx_setProcTitle_init();
+    // 重命名进程名称
+    static bool ngx_setProTitle(const char *title);
 };
 
 
