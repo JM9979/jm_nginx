@@ -28,9 +28,7 @@ public:
         NUM_LOG_LEVELS
     };
     void ngx_log_init();
-    std::fstream& stream() {
-        return m_fStream;
-    }
+    std::fstream& stream(int logLevel);
 
 public:
     log(const log& other) = delete;
@@ -47,9 +45,9 @@ private:
 };
 
 #define LOG_DEBUG if(g_logLevel <= log::DEBUG) \
-    log::getInstance().stream()
+    log::getInstance().stream(log::DEBUG)
 #define LOG_INFO if(g_logLevel <= log::INFO) \
-    log::getInstance().stream()
-#define LOG_WARN log::getInstance().stream()
-#define LOG_ERROR log::getInstance().stream()
+    log::getInstance().stream(log::INFO)
+#define LOG_WARN log::getInstance().stream(log::WARN)
+#define LOG_ERROR log::getInstance().stream(log::ERROR)
 #endif //JM_NGINX_LOG_H

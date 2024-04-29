@@ -9,6 +9,7 @@
 #include <iomanip>
 #include <sstream>
 #include <iostream>
+#include <unistd.h>
 
 const char* LogLevelName[log::NUM_LOG_LEVELS] = {
         "DEBUG",
@@ -25,7 +26,6 @@ void log::ngx_log_init() {
         auto now = std::chrono::system_clock::now();
         std::time_t now_c = std::chrono::system_clock::to_time_t(now);
         std::tm* now_tm = std::localtime(&now_c);
-
         std::ostringstream oss;
         oss << std::put_time(now_tm, "%Y-%m-%d");
         std::string m_time = oss.str();
@@ -45,4 +45,19 @@ void log::ngx_log_init() {
     } catch (const std::exception& e) {
         std::cerr << "Log initialization failed: " << e.what() << std::endl;
     }
+}
+std::fstream& log::stream(int logLevel) {
+    // 格式输出日期
+    auto now = std::chrono::system_clock::now();
+    std::time_t now_c = std::chrono::system_clock::to_time_t(now);
+    std::tm* now_tm = std::localtime(&now_c);
+    // 输出秒以后的精度
+    auto now_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now);
+    auto duration = now_ms.time_since_epoch();
+    auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+
+    m_fStream << std::put_time(now_tm, "%Y-%m-%d %H:%M:%S") << "." << std::to_string(millis);
+    m_fStream << " " << LogLevelName[logLevel] << " ";
+    m_fStream << getpid() << " ";
+    return m_fStream;
 }
