@@ -59,5 +59,6 @@ std::fstream& log::stream(int logLevel) {
     m_fStream << std::put_time(now_tm, "%Y-%m-%d %H:%M:%S") << "." << std::to_string(millis);
     m_fStream << " " << LogLevelName[logLevel] << " ";
     m_fStream << getpid() << " ";
+    m_fStream << ": ";
     return m_fStream;
 }

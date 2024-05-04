@@ -7,6 +7,7 @@
 
 #include <fstream>
 #include <string>
+#include <atomic>
 
 
 // void ngx_log_init() 初始化日志, 打开或者创建日志文件
@@ -42,6 +43,7 @@ private:
 private:
     std::fstream m_fStream;
     std::string m_name;
+//    std::atomic<int> m_count;
 };
 
 #define LOG_DEBUG if(g_logLevel <= log::DEBUG) \
