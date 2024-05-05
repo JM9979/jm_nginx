@@ -19,4 +19,6 @@ void ngx_signal_handler(int signo, siginfo_t *siginfo, void *ucontext);
 
 int ngx_init_signals();
 
+void sigchld_handler();
+
 #endif //JM_NGINX_MYSIGNAL_H

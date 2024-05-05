@@ -3,6 +3,9 @@
 //
 #include <iostream>
 #include <cstring>
+#include <sys/types.h>
+#include <sys/wait.h>
+
 #include "log.h"
 #include "mysignal.h"
 
@@ -40,5 +43,39 @@ int ngx_init_signals() {
 }
 
 void ngx_signal_handler(int signo, siginfo_t *siginfo, void *ucontext) {
-    std::cout << signo << ": " << std::endl;
+    if(signo == SIGCHLD) {
+        sigchld_handler();
+    }
+}
+
+void sigchld_handler() {
+    int status;
+    int one = 0;
+    while(true) {
+        pid_t pid = waitpid(-1, &status, WNOHANG);
+
+        // 没有子进程结束
+        if(pid == 0) {
+            return ;
+        }
+
+        // 非阻塞执行waitpid的时候需要判断errno情况再处理
+        if(pid == -1) {
+            if(errno == EINTR) {
+                continue;
+            } else if(errno == ECHILD && one) {
+                return ;
+            } else if(errno == ECHILD) {
+                return ;
+            }
+            return ;
+        }
+        one = 1;
+        // 判断子进程退出的原因
+        if(WTERMSIG(status)) {
+            LOG_WARN << "child pid = " << pid << " exited on signal " << WTERMSIG(status) << std::endl;
+        } else {
+            LOG_INFO << "child pid = " << pid << " exited with code " << WTERMSIG(status) << std::endl;
+        }
+    }
 }
