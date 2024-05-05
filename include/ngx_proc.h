@@ -11,9 +11,10 @@
 // ngx_work_process_init 子进程初始化，清空信号集
 // ngx_work_process_loop 子进程loop
 
-void ngx_master_process_loop();
+[[noreturn]] void ngx_master_process_loop();
 void ngx_fork_process(int processNums, const char * processName);
 void ngx_work_process_init(const char * processName);
-void ngx_work_process_loop();
+
+[[noreturn]] void ngx_work_process_loop();
 
 #endif //JM_NGINX_NGX_PROC_H

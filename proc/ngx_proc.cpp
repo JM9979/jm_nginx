@@ -13,7 +13,7 @@
 
 const char *WorkProcessName = "jm_nginx:work process";
 
-void ngx_master_process_loop() {
+[[noreturn]] void ngx_master_process_loop() {
     sigset_t set;
     sigemptyset(&set);
 
@@ -34,10 +34,11 @@ void ngx_master_process_loop() {
 
     int processNums = ngx_conf::getInstance().getInt("WorkProcess", 1);
     ngx_fork_process(processNums, WorkProcessName);
-    while(1) {
-//        LOG_INFO << "this is parent process" << std::endl;
+
+    sigemptyset(&set);
+    while(true) {
+        sigsuspend(&set);
     }
-    return ;
 }
 
 void ngx_fork_process(int processNums, const char * processName) {
@@ -51,7 +52,6 @@ void ngx_fork_process(int processNums, const char * processName) {
             case 0:{
                 ngx_work_process_init(processName);
                 ngx_work_process_loop();
-                break;
             }
             default :{
                 break;
@@ -69,8 +69,8 @@ void ngx_work_process_init(const char * processName) {
     ngx_func::ngx_setProTitle(processName);
 }
 
-void ngx_work_process_loop() {
-    while(1) {
+[[noreturn]] void ngx_work_process_loop() {
+    while(true) {
 //        LOG_INFO << "this is work process"<< std::endl;
     }
 }
