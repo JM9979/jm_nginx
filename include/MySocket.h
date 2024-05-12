@@ -20,9 +20,11 @@ public:
     ~MySocket();
     bool socket_init();
 private:
+    void read_config();
     bool listening_port();
     void close_listening_port();
     int m_listen_port_count;
+    int m_max_connections;
     std::vector<ptr_listening_s> m_listen_port_list;
 };
 
