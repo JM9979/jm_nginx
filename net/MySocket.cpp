@@ -8,13 +8,14 @@
 
 #include <fcntl.h>
 #include <unistd.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <cstring>
 #include <string>
+#include <sys/epoll.h>
+#include <errno.h>
 
-bool set_nonblocking(int fd) {
+bool set_nonblocking(int fd)  {
     int old = fcntl(fd, F_GETFL);
     if(old == -1) {
         return false;
@@ -26,9 +27,8 @@ bool set_nonblocking(int fd) {
     return true;
 }
 
-
 MySocket::MySocket() : m_listen_port_count(1), m_max_connections(1024) {
-    read_config();
+
 }
 
 MySocket::~MySocket() {
@@ -40,6 +40,7 @@ MySocket::~MySocket() {
 }
 
 bool MySocket::socket_init() {
+    read_config();
     return listening_port();
 }
 
@@ -104,4 +105,115 @@ void MySocket::close_listening_port() {
     for(auto &iter : m_listen_port_list) {
         close(iter->fd);
     }
+}
+
+int MySocket::epoll_init() {
+    if((m_epoll_fd = epoll_create(5)) == -1) {
+        LOG_ERROR << "MySocket::epoll_init() epoll_create(5)" << std::endl;
+        exit(2);
+    }
+
+    connection_pool_init();
+
+    for(auto &iter : m_listen_port_list) {
+        if((iter->connection = get_connection(iter->fd)) == nullptr) {
+            LOG_ERROR << "MySocket::epoll_init() get_connection" << std::endl;
+            exit(2);
+        }
+        iter->connection->listening = iter;
+
+        if(epoll_add_event(iter->fd, iter->connection) == -1) {
+            LOG_ERROR << "MySocket::epoll_init() epoll_add_event" << std::endl;
+            exit(2);
+        }
+        iter->connection->event_handler = &MySocket::accept_handler;
+    }
+    return 0;
+}
+
+int MySocket::epoll_add_event(int fd, ptr_connection_s ptr) const {
+    struct epoll_event event;
+    memset(&event, 0, sizeof(struct epoll_event));
+    event.events = EPOLLIN | EPOLLRDHUP;
+    event.data.ptr = ptr;
+    if(epoll_ctl(m_epoll_fd, EPOLL_CTL_ADD, fd, &event) == -1) {
+        LOG_ERROR << "epoll_add_event() epoll_ctl" << std::endl;
+        return -1;
+    }
+    return 0;
+}
+
+void MySocket::connection_pool_init() {
+    m_connections_list = new connection_s[m_max_connections];
+
+    m_free_connections = m_max_connections;
+
+    ptr_connection_s next = nullptr;
+    for(int i = m_max_connections - 1; i >= 0; --i) {
+        m_connections_list[i].next = next;
+        next = &m_connections_list[i];
+    }
+    m_free_connection_list = next;
+}
+
+ptr_connection_s MySocket::get_connection(int fd) {
+    m_free_connections--;
+    ptr_connection_s tmp = m_free_connection_list;
+    m_free_connection_list = tmp->next;
+    tmp->fd = fd;
+    tmp->next = nullptr;
+    return tmp;
+}
+
+void MySocket::release_connection(ptr_connection_s ptr) {
+    m_free_connections++;
+    memset(ptr, 0, sizeof(connection_s));
+    ptr->next = m_free_connection_list;
+    m_free_connection_list = ptr;
+}
+
+int MySocket::accept_handler(ptr_connection_s ptr) {
+    struct sockaddr_in client_addr;
+    memset(&client_addr, 0, sizeof(struct sockaddr_in));
+    socklen_t len = sizeof(struct sockaddr_in);
+    int client_fd = -1;
+    while(true) {
+        if((client_fd = accept(ptr->fd, (struct sockaddr *)&client_addr, &len)) == -1) {
+            LOG_ERROR << "accept_handler() accept" << std::endl;
+            return -1;
+        }
+
+        if(client_fd == -1) {
+            if(errno == EAGAIN) {
+                continue;
+            }
+            break;
+        }
+
+        if(!set_nonblocking(client_fd)) {
+            LOG_ERROR << "accept_handler() set_nonblocking" << std::endl;
+            return -1;
+        }
+
+        ptr_connection_s ptr_ = get_connection(client_fd);
+        if(ptr_ == nullptr) {
+            LOG_ERROR << "accept_handler() get_connection" << std::endl;
+            return -1;
+        }
+        memcpy(&(ptr_->sock_addr), &client_addr, len);
+        ptr_->fd = client_fd;
+        ptr_->event_handler = &MySocket::rw_handler;
+        ptr_->listening = ptr->listening;
+
+        if(epoll_add_event(client_fd, ptr_) == -1) {
+            LOG_ERROR << "accept_handler() epoll_add_event()" << std::endl;
+            return -1;
+        }
+        break;
+    }
+    return 0;
+}
+
+int MySocket::rw_handler(ptr_connection_s ptr) {
+    return {};
 }
