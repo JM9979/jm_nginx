@@ -6,12 +6,15 @@
 #include "log.h"
 #include "ngx_conf.h"
 #include "ngx_func.h"
+#include "MySocket.h"
 
 #include "csignal"
 
 #include <iostream>
 
 const char *WorkProcessName = "jm_nginx:work process";
+
+extern MySocket g_socket;
 
 [[noreturn]] void ngx_master_process_loop() {
     sigset_t set;
@@ -67,6 +70,8 @@ void ngx_work_process_init(const char * processName) {
         LOG_ERROR << "ngx_work_process_init sigprocmask()" << std::endl;
     }
     ngx_func::ngx_setProTitle(processName);
+    g_socket.socket_init();
+    g_socket.epoll_init();
 }
 
 [[noreturn]] void ngx_work_process_loop() {
